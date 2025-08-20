@@ -1,6 +1,5 @@
 import os
 import uuid
-import aiohttp
 import asyncio
 import subprocess
 from fastapi import FastAPI, Query
