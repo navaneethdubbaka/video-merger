@@ -1,3 +1,13 @@
+import os
+import uuid
+import aiohttp
+import asyncio
+import subprocess
+from fastapi import FastAPI, Query
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+
+app = FastAPI()
+
 @app.get("/make-video")
 def make_video(image_url: str, audio_url: str):
     output_file = f"{uuid.uuid4()}.mp4"
@@ -15,3 +25,4 @@ def make_video(image_url: str, audio_url: str):
     subprocess.run(cmd, check=True)
 
     return FileResponse(output_file, media_type="video/mp4", filename="output.mp4")
+
