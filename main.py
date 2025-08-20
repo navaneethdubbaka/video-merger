@@ -38,12 +38,14 @@ async def merge(image_url: str = Query(...), audio_url: str = Query(...)):
         # Run ffmpeg command
         cmd = [
             "ffmpeg", "-y",
-            "-loop", "1", "-i", image_path,
-            "-i", audio_path,
-            "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",  # ensure even dimensions
+            "-loop", "1", "-i", image_url,  # stream image directly from URL
+            "-i", audio_url,  # stream audio directly from URL
+            "-ss", "0", "-t", "20",  # limit to 20 sec
+            "-vf", "scale=1280:-2,format=yuv420p",
             "-c:v", "libx264", "-tune", "stillimage",
             "-c:a", "aac", "-b:a", "192k",
-            "-shortest", "-pix_fmt", "yuv420p",
+            "-pix_fmt", "yuv420p",
+            "-shortest",
             output_path
         ]
 
