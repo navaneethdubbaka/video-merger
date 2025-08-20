@@ -2,46 +2,47 @@ import os
 import uuid
 import subprocess
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse
+from supabase import create_client, Client
 
 app = FastAPI()
 
-# folder where videos will be saved
-VIDEO_DIR = "videos"
-os.makedirs(VIDEO_DIR, exist_ok=True)
+# --- Direct Supabase Credentials (replace with yours) ---
+SUPABASE_URL = "https://xrigzgfmdqhbpkvxkbhs.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaWd6Z2ZtZHFoYnBrdnhrYmhzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MTQyMDIxNSwiZXhwIjoyMDY2OTk2MjE1fQ.xhJjshMPsNpg1X86mn04t34ZPU-KxmVdE5xF7_wH1e8"
 
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 @app.get("/make-video")
 def make_video(image_url: str, audio_url: str):
-    # unique filename
-    file_id = str(uuid.uuid4())
-    output_path = os.path.join(VIDEO_DIR, f"{file_id}.mp4")
+    # Unique video file name
+    output_filename = f"{uuid.uuid4()}.mp4"
 
-    # ffmpeg command
+    # FFmpeg command
     cmd = [
         "ffmpeg", "-y",
         "-loop", "1", "-i", image_url,
         "-i", audio_url,
-        "-t", "20",  # fixed 20s
+        "-t", "20",
         "-vf", "scale=1280:-2,format=yuv420p",
         "-c:v", "libx264", "-tune", "stillimage",
         "-c:a", "aac", "-b:a", "192k",
         "-shortest",
         "-pix_fmt", "yuv420p",
-        output_path
+        output_filename
     ]
 
+    # Run ffmpeg
     subprocess.run(cmd, check=True)
 
-    # instead of streaming, return the file link
-    file_url = f"/videos/{file_id}.mp4"
-    return JSONResponse({"video_url": file_url})
+    # Upload to Supabase Storage
+    with open(output_filename, "rb") as f:
+        supabase.storage.from_("videos").upload(output_filename, f)
 
+    # Make public URL
+    public_url = supabase.storage.from_("videos").get_public_url(output_filename)
 
-# route to serve video files
-@app.get("/videos/{file_name}")
-def get_video(file_name: str):
-    file_path = os.path.join(VIDEO_DIR, file_name)
-    if os.path.exists(file_path):
-        return FileResponse(file_path, media_type="video/mp4")
-    return JSONResponse({"error": "File not found"}, status_code=404)
+    # Delete local file after upload
+    os.remove(output_filename)
+
+    return JSONResponse({"url": public_url})
