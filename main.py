@@ -40,11 +40,13 @@ async def merge(image_url: str = Query(...), audio_url: str = Query(...)):
             "ffmpeg", "-y",
             "-loop", "1", "-i", image_path,
             "-i", audio_path,
+            "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",  # ensure even dimensions
             "-c:v", "libx264", "-tune", "stillimage",
             "-c:a", "aac", "-b:a", "192k",
             "-shortest", "-pix_fmt", "yuv420p",
             output_path
         ]
+
         process = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if process.returncode != 0:
             raise Exception(process.stderr.decode())
